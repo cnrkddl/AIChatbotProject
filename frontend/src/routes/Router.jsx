@@ -1,29 +1,30 @@
-// frontend/src/routes/Router.jsx
+// src/routes/Router.jsx
 import React from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 
+// 페이지 컴포넌트 경로는 프로젝트 구조에 맞게 조정하세요.
+import LoginPage       from '../pages/LoginPage';
 import HomePage        from '../pages/HomePage';
 import ChatBotPage     from '../pages/ChatBotPage';
-import FeedbackPage    from '../pages/FeedbackPage';
 import PatientInfoPage from '../pages/PatientInfoPage';
-import LoginPage       from '../pages/LoginPage';
+import FeedbackPage    from '../pages/FeedbackPage';
 
-const Router = () => (
-  <BrowserRouter>
-    <Routes>
-      {/* 기본 경로는 /home으로 리다이렉트 */}
-      <Route path="/" element={<Navigate to="/home" replace />} />
+export default function AppRouter() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* 기본 진입은 /login */}
+        <Route path="/" element={<Navigate to="/login" replace />} />
 
-      <Route path="/home"          element={<HomePage />} />
-      <Route path="/chatbot"       element={<ChatBotPage />} />
-      <Route path="/feedback"      element={<FeedbackPage />} />
-      <Route path="/patient-info"  element={<PatientInfoPage />} />
-      <Route path="/login"         element={<LoginPage />} />
+        <Route path="/login"        element={<LoginPage />} />
+        <Route path="/home"         element={<HomePage />} />
+        <Route path="/chat"         element={<ChatBotPage />} />
+        <Route path="/patient-info" element={<PatientInfoPage />} />
+        <Route path="/feedback"     element={<FeedbackPage />} />
 
-      {/* 정의되지 않은 모든 경로 → /home */}
-      <Route path="*" element={<Navigate to="/home" replace />} />
-    </Routes>
-  </BrowserRouter>
-);
-
-export default Router;
+        {/* 없는 경로는 /login 으로 */}
+        <Route path="*" element={<Navigate to="/login" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}

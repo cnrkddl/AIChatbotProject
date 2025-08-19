@@ -1,196 +1,70 @@
-import React, { useState } from "react";
+// src/pages/LoginPage.jsx
+import React, { useEffect, useState } from "react";
+import { useNavigate, useLocation } from "react-router-dom";
 
-export default function LoginPage({ onLogin }) {
-  const [id, setId] = useState("");
-  const [pw, setPw] = useState("");
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:8001";
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    // 로그인 검증은 생략, 바로 로그인 처리
-    if (typeof onLogin === "function") onLogin();
+export default function LoginPage() {
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // 카카오 인증 후 ?login=success(또는 login%3Dsuccess) 감지 → /home 이동
+  useEffect(() => {
+    const raw = location.search || window.location.search || "";
+    if (raw.includes("login=success") || raw.includes("login%3Dsuccess")) {
+      navigate("/home", { replace: true });
+    }
+  }, [location, navigate]);
+
+  const handleKakaoLogin = () => {
+    setLoading(true);
+    const next = "/login?login=success";           // 프론트로 돌아올 경로
+    const encodedNext = encodeURIComponent(next);  // 반드시 전체 인코딩
+    window.location.href = `${API_BASE}/authorize?next=${encodedNext}`;
   };
 
   return (
-    <div className="page">
-      <style>{`
-        .page {
-          min-height: 100vh;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          background: #f8fafc;
-          padding: 16px;
-          box-sizing: border-box;
-        }
-        .wrap {
-          width: 100%;
-          max-width: 480px;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 16px;
-        }
-        .title {
-          font-size: 36px;
-          font-weight: 800;
-          letter-spacing: -0.02em;
-          margin: 8px 0 8px;
-          color: #111827;
-          text-align: center;
-        }
-        .subtitle {
-          margin: 0;
-          font-size: 14px;
-          color: #6b7280;
-          text-align: center;
-        }
-
-        .form { 
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-          background-color: #ffffff; 
-          padding: 30px; 
-          width: 100%;
-          border-radius: 20px; 
-          font-family: Roboto, 'Noto Sans KR', sans-serif;
-          box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-          border: 1px solid #e5e7eb;
-          box-sizing: border-box;
-        }
-        .flex-column > label { 
-          color: #151717; 
-          font-weight: 600;
-          font-size: 14px;
-        }
-        .inputForm {
-          border: 1.5px solid #ecedec; 
-          border-radius: 10px;
-          height: 50px; 
-          display: flex;
-          align-items: center; 
-          padding-left: 10px;
-          transition: 0.2s ease-in-out;
-          background: #fff;
-        }
-        .inputForm:hover {
-          border-color: #a1a1a1;
-        }
-        .inputForm:focus-within {
-          border: 1.5px solid #2d79f3;
-        }
-        .input {
-          border-radius: 10px; 
-          border: none; 
-          width: 100%; 
-          height: 100%;
-          outline: none;
-          font-family: Roboto, 'Noto Sans KR', sans-serif;
-          padding-left: 10px;
-          font-size: 14px;
-          background: transparent;
-        }
-        ::placeholder {
-          font-family: Roboto, 'Noto Sans KR', sans-serif;
-          color: #aaa;
-        }
-        .span { 
-          font-size: 14px; 
-          margin-left: 5px; 
-          color: #2d79f3; 
-          font-weight: 500; 
-          cursor: pointer;
-        }
-        .button-submit {
-          margin: 20px 0 10px 0; 
-          background-color: #151717; 
-          border: none; 
-          color: white; 
-          font-size: 15px; 
-          font-weight: 700; 
-          border-radius: 10px; 
-          height: 50px; 
-          width: 100%;
-          cursor: pointer;
-          transition: 0.2s ease-in-out;
-        }
-        .button-submit:hover {
-          background-color: #333333;
-        }
-        .kakao-button {
-          border: none;
-          background: transparent;
-          padding: 0;
-          cursor: pointer;
-          width: 100%;
-          margin-top: 10px;
-        }
-        .kakao-button div {
-          background-color: #FEE500;
-          border-radius: 10px;
-          height: 50px;
-          font-weight: 700;
-          font-size: 16px;
-          color: #000;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-        }
-      `}</style>
-
-      <div className="wrap">
-        {/* 상단 타이틀 */}
-        <h1 className="title">AI CARE</h1>
-        {/* <p className="subtitle">보호자 전용 케어 포털</p> */}
-
-        {/* 기존 로그인 폼 */}
-        <form className="form" onSubmit={handleSubmit}>
-          <div className="flex-column">
-            <label htmlFor="login-id">ID</label>
-          </div>
-          <div className="inputForm">
-            <input
-              id="login-id"
-              placeholder="Enter your ID"
-              className="input"
-              type="text"
-              value={id}
-              onChange={(e) => setId(e.target.value)}
-              autoComplete="username"
-              required
-            />
-          </div>
-
-          <div className="flex-column">
-            <label htmlFor="login-pw">Password</label>
-          </div>
-          <div className="inputForm">
-            <input
-              id="login-pw"
-              placeholder="Enter your Password"
-              className="input"
-              type="password"
-              value={pw}
-              onChange={(e) => setPw(e.target.value)}
-              autoComplete="current-password"
-              required
-            />
-          </div>
-
-          <span className="span">비밀번호를 잊어버렸나요?</span>
-
-          <button className="button-submit" type="submit">
-            Sign In
-          </button>
-
-          {/* 필요시 유지/삭제 선택 */}
-          <button className="kakao-button" type="button">
-            <div>카카오 로그인</div>
-          </button>
-
-          {/* 요청대로 Sign Up 문구는 제거 */}
-        </form>
+    <div style={styles.wrap}>
+      <div style={styles.card}>
+        <h2 style={{ margin: 0 }}>로그인</h2>
+        <p style={{ color: "#666" }}>카카오로 안전하게 로그인하세요.</p>
+        <button
+          onClick={handleKakaoLogin}
+          style={styles.kakaoBtn}
+          disabled={loading}
+        >
+          {loading ? "카카오 연결 중..." : "카카오로 로그인"}
+        </button>
       </div>
     </div>
   );
 }
+
+const styles = {
+  wrap: {
+    minHeight: "100vh",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#f7f7f9",
+    padding: 24,
+  },
+  card: {
+    width: 360,
+    background: "#fff",
+    borderRadius: 16,
+    boxShadow: "0 8px 24px rgba(0,0,0,0.08)",
+    padding: 24,
+  },
+  kakaoBtn: {
+    width: "100%",
+    height: 48,
+    borderRadius: 10,
+    border: "1px solid #FEE500",
+    background: "#FEE500",
+    fontWeight: 700,
+    cursor: "pointer",
+    marginTop: 12,
+  },
+};

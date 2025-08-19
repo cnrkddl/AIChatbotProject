@@ -53,6 +53,14 @@ const FeedbackPage = () => {
           제출하기
         </button>
       </div>
+
+      <style>{`
+        button:hover {
+          transform: scale(1.6);
+          box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+          transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+      `}</style>
     </>
   );
 };
@@ -66,6 +74,7 @@ const styles = {
     boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
     margin: "100px auto",
     fontFamily: "'Pretendard', sans-serif",
+    boxSizing: "border-box", // ✅
   },
   title: {
     fontSize: "26px",
@@ -125,20 +134,25 @@ const styles = {
     resize: "none",
     fontSize: "15px",
     lineHeight: "1.5",
-    marginBottom: "24px",
+    margin: "0 auto 24px",  // ✅ 가운데 정렬
     fontFamily: "inherit",
+    display: "block",
+    boxSizing: "border-box",
   },
   submitBtn: {
     width: "100%",
+    display: "block",     // ✅ 수평 가운데 정렬 가능
+    margin: "0 auto",     // ✅ 중앙 정렬
     padding: "16px",
-    background: "#4B6EF5", // 단색으로 변경
+    background: "#3772a6ff",
     color: "#fff",
     border: "none",
     borderRadius: "12px",
     fontSize: "16px",
     fontWeight: "600",
     cursor: "pointer",
-    transition: "background 0.3s ease",
+    transition: "all 0.3s ease",
+    transform: "scale(1)",
   },
 };
 
