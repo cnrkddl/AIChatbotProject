@@ -19,10 +19,9 @@ export default function LoginPage() {
 
   const handleKakaoLogin = () => {
     setLoading(true);
-    const next = "/login?login=success";           // 프론트로 돌아올 경로
-    const encodedNext = encodeURIComponent(next);  // 반드시 전체 인코딩
-    window.location.href = `${API_BASE}/authorize?next=${encodedNext}`;
+    window.location.href = `${API_BASE}/auth/kakao/login`;
   };
+
 
   return (
     <div style={styles.wrap}>

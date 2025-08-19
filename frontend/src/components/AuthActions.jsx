@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:8001";
+const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:8000";
 
 /**
  * 로그아웃(세션만 종료) / 연결해제(카카오-앱 연결 자체 해제) 버튼
