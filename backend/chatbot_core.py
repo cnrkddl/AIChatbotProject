@@ -12,6 +12,7 @@ from langchain.schema import SystemMessage
 from langchain.memory import ConversationBufferMemory
 from langchain_core.runnables.history import RunnableWithMessageHistory
 
+import sqlite3
 
 
 # ================================================================================================================================================================================
@@ -22,6 +23,11 @@ load_dotenv()
 if not os.getenv("OPENAI_API_KEY"):
     raise EnvironmentError("OPENAI_API_KEY 환경변수가 설정되어 있지 않습니다.")
 
+# LLM 구성
+llm = ChatOpenAI(
+    model="gpt-4o-mini",
+    temperature=0.7
+)
 
 # 역할 부여용 시스템 프롬프트
 system_prompt = SystemMessagePromptTemplate.from_template(
@@ -31,27 +37,24 @@ system_prompt = SystemMessagePromptTemplate.from_template(
 보호자의 감정을 따뜻하게 받아들이고 공감하며, 필요한 경우 간단한 조언이나 위로를 제공합니다.
 보호자가 챗봇의 기능이나 역할을 묻는 질문이 있을 경우, 스스로의 역할과 한계를 따뜻하게 설명하고 신뢰를 줄 수 있는 답변을 제공합니다.
 
-보호자가 "환자의 상태를 묻는 질문"을 할 경우에만, 전자 의무기록(EMR)의 요약(emr_summary)을 참고해 최신 상태에 대한 정보를 제공합니다.
+보호자가 "환자의 상태를 묻는 질문"을 할 경우, 챗봇은 직접 상태를 설명하지 않습니다. 
+대신 '환자 상태 정보' 페이지를 안내하거나 병원 간호사에게 연락할 수 있도록 도와주세요.
 
-EMR 요약(emr_summary)은 매일 갱신되며, 다음과 같은 내용을 포함할 수 있습니다:
-   - 환자의 식사량, 활력 징후, 특이사항(낙상, 발열, 수면 변화 등)
-   - 회복 경과나 주의가 필요한 상태도 포함될 수 있습니다.
+예: 
+"환자분의 구체적인 상태는 '환자 상태 정보' 페이지에서 확인하실 수 있어요. 
+추가 문의가 필요하시면 병원 간호사 선생님께 연락 부탁드려요. 📞 031-919-0041"
 
-emr_summary 내용을 바탕으로, 보호자의 감정을 고려하여 다음 기준에 따라 응답을 구성하세요:
-   - 상태가 안정적인 경우: "크게 변화 없고 안정적인 상태입니다" 등으로 안심시켜 주세요.
-   - 경미한 이상이 있는 경우: "가벼운 피로감이 있지만 회복 중입니다" 등으로 조심스럽게 알려 주세요.
-   - 특이사항(낙상, 고열 등)이 있는 경우: 명확하게 전달하고, 병원 간호사 연락처를 함께 안내해 주세요.
 
-예: "최근 어머님께 가벼운 낙상이 있었지만 큰 외상 없이 회복 중입니다. 추가 문의는 병원에 연락하셔도 괜찮습니다. 📞 02-1234-5678"
 
 일정 문의(예: 식사 시간, 면회 시간, 목욕 요일 등)에 대해서는 병동 상황에 따라 변경될 수 있어 챗봇이 정확히 안내하기 어렵습니다.
 이 경우 보호자에게 일정이 유동적임을 이해시키고, 병원 간호사에게 직접 문의할 수 있도록 안내하세요.
 
-예: "해당 일정은 병동 내 상황에 따라 변경될 수 있어 정확한 시간 안내는 어려워요. 자세한 내용은 병원 간호사 선생님께 직접 문의해 주시면 안내해드릴 수 있을 거예요. 📞 02-1234-5678"
+예: 
+"해당 일정은 병동 내 상황에 따라 변경될 수 있어 정확한 시간 안내는 어려워요. 
+자세한 내용은 병원 간호사 선생님께 직접 문의해 주시면 안내해드릴 수 있을 거예요. 📞 031-919-0041"
 
-단, 감정 표현, 일정 문의, 시스템 질문 등에는 EMR을 인용하지 마세요.
+단, 감정 표현, 일정 문의, 시스템 질문 등은 환자 상태 안내와 혼동되지 않도록 따뜻하게 응답하세요.
 """.strip())
-
 
 
 
@@ -114,7 +117,7 @@ examples = [
             "문자 알림은 병원 내 별도 시스템을 통해 발송되는 경우가 많아,\n"
             "챗봇에서는 직접 확인하거나 수정이 어려운 점 양해 부탁드려요.\n"
             "정확한 확인을 원하시면 병원에 문의해 주시면 빠르게 도와드릴 수 있을 거예요.\n"
-            "📞 02-1234-5678"
+            "📞 031-919-0041"
         )
     }
 ]
@@ -147,17 +150,6 @@ prompt = ChatPromptTemplate.from_messages([
 ])
 
 
-
-# LLM 구성
-llm = ChatOpenAI(
-    model="gpt-4",
-    temperature=0.7
-)
-
-
-
-
-
 memory_store = {}
 
 def get_session_history(session_id: str):
@@ -173,9 +165,38 @@ chat_chain = RunnableWithMessageHistory(
     history_messages_key="history"
 )
 
+# ----------------------------------------------------------------------------------------------------------
+
+# DB 초기화
+db_path = os.path.join(os.path.dirname(__file__), "chat_logs", "chat_logs.db")
+os.makedirs(os.path.dirname(db_path), exist_ok=True)
+
+conn = sqlite3.connect(db_path, check_same_thread=False)
+cursor = conn.cursor()
+cursor.execute("""
+CREATE TABLE IF NOT EXISTS chat_log (
+    session_id TEXT,
+    user_input TEXT,
+    bot_response TEXT,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+)
+""")
+conn.commit()
+
+def save_chat(session_id, user_input, bot_response):
+    cursor.execute(
+        "INSERT INTO chat_log (session_id, user_input, bot_response) VALUES (?, ?, ?)",
+        (session_id, user_input, bot_response)
+    )
+    conn.commit()
+
 def get_emotional_support_response(session_id: str, user_input: str):
     reply = chat_chain.invoke(
         {"user_input": user_input},
         config={"configurable": {"session_id": session_id}}
     )
+
+    # ✅ 응답 직후 DB 저장
+    save_chat(session_id, user_input, reply.content)
+
     return reply.content

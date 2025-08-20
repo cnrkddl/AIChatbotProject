@@ -1,4 +1,3 @@
-// src/components/PatientHistoryCard.jsx
 import React from "react";
 
 /**
@@ -47,7 +46,14 @@ export default function PatientHistoryCard({
                 <ul style={S.list}>
                   {arr.map((it, i) => (
                     <li key={`${kw}-${i}`} style={S.item}>
-                      {renderHighlighted(it.detail || "-", highlightQuery)}
+                      {it.detail === "호전됨" ? (
+                        <span style={S.improve}>
+                          <span style={S.improveDot} />
+                          호전됨
+                        </span>
+                      ) : (
+                        renderHighlighted(it.detail || "-", highlightQuery)
+                      )}
                     </li>
                   ))}
                 </ul>
@@ -94,7 +100,7 @@ function renderHighlighted(text, q) {
   return (
     <>
       {before}
-      <mark style={{ padding: 0 }}>{match}</mark>
+      <mark style={{ padding: 0, backgroundColor: "#dbeafe", color: "#1e40af" }}>{match}</mark>
       {renderHighlighted(after, q)}
     </>
   );
@@ -144,4 +150,25 @@ const S = {
   kwCount: { fontWeight: 700, marginLeft: 6, opacity: 0.8 },
   list: { margin: 0, paddingLeft: 18 },
   item: { margin: "4px 0", color: "#0f172a", fontSize: 14, lineHeight: 1.5 },
+
+  // '호전됨' 특별 표시
+  improve: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 6,
+    padding: "2px 8px",
+    fontSize: 12,
+    fontWeight: 800,
+    color: "#166534",
+    background: "#dcfce7",
+    border: "1px solid #86efac",
+    borderRadius: 999,
+  },
+  improveDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 99,
+    background: "#22c55e",
+    display: "inline-block",
+  },
 };

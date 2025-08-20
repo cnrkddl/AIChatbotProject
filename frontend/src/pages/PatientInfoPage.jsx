@@ -8,7 +8,7 @@ export default function PatientInfoPage() {
   const { patientId: routePatientId } = useParams();
   const [patientId, setPatientId] = useState(routePatientId || "25-0000032");
 
-  // .env 우선, 없으면 8000 기본값 (필요시 8001로 교체 가능)
+  // .env 우선, 없으면 8000 기본값
   const API_BASE = process.env.REACT_APP_API_BASE || "http://localhost:8000";
 
   const [notes, setNotes] = useState([]);        // 원본 전체
@@ -20,21 +20,24 @@ export default function PatientInfoPage() {
   const [query, setQuery] = useState("");         // 자유 검색(키워드/내용)
   const [debounced, setDebounced] = useState(""); // 간단 디바운스
 
-  // 키워드별 색상
+  // ocr_records.py의 라벨을 반영한 키워드-색상 매핑
   const keywordColor = useMemo(
     () => ({
-      발열: "#ef4444",
-      가래: "#06b6d4",
-      자가배뇨: "#8b5cf6",
-      욕창: "#f59e0b",
-      통증: "#f97316",
-      식사: "#22c55e",
-      수면: "#3b82f6",
-      산소: "#0ea5e9",
-      기타: "#64748b",
+      발열: "#ef4444",         // 발열
+      가래: "#06b6d4",         // 가래
+      자가배뇨: "#8b5cf6",     // 자가배뇨 못함
+      욕창: "#f59e0b",         // 욕창
+      통증: "#f97316",         // 통증
+      식사: "#22c55e",         // 식사
+      "대소변 조절 못함": "#0ea5e9",   // 파랑
+      "수면장애": "#f97316",         // 주황
+      "자가배뇨 못함": "#8b5cf6",    // 보라
+      "파킨슨 증상 악화": "#ef4444", // 빨강
+      기타: "#64748b",               // 회색
     }),
     []
   );
+
 
   // 데이터 로드
   useEffect(() => {
@@ -50,6 +53,7 @@ export default function PatientInfoPage() {
         }
         const data = await res.json();
         if (!ignore) {
+          // 백엔드가 이미 템플릿 반영(키워드/원인 매핑, '호전됨' 포함)한 JSON을 내려줌
           setNotes(Array.isArray(data) ? data : []);
           if (Array.isArray(data) && data.length > 0) {
             setSelectedDate(data[data.length - 1].date); // 최신 날짜

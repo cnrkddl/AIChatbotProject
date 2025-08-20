@@ -1,3 +1,4 @@
+# main.py
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -14,7 +15,7 @@ from ocr_records import (
     build_nursing_notes_json,
 )
 
-# ===== 카카오 OAuth 유틸
+# ===== 카카오 OAuth 유틸 (첫 번째 파일에서 쓰던 유틸 그대로 사용)
 from kakao_oauth import (
     build_authorize_url,
     exchange_token,
@@ -28,7 +29,10 @@ app = FastAPI()
 # =========================
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # 리액트 앱 주소
+    allow_origins=[
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -58,7 +62,10 @@ def chat_endpoint(data: UserInput):
 # =========================
 @app.get("/analyze-pdf")
 def analyze_pdf():
-    pdf_path = "uploads/김x애-간호기록지.pdf"
+    """
+    서버에 저장된 PDF를 분석해 문장 형태 결과 반환
+    """
+    pdf_path = "uploads/김x애-간호기록지.pdf"  # 실제 파일 경로로 맞춰주세요
     if not os.path.exists(pdf_path):
         raise HTTPException(status_code=404, detail=f"PDF not found: {pdf_path}")
 
@@ -69,28 +76,41 @@ def analyze_pdf():
 
 # =========================
 # 3) PatientInfoPage용 API (JSON 구조)
+#    - 환자별 PDF 매핑 + 기간/버전 확장 고려
 # =========================
 
+# 환자ID → 기간별 문서 목록 (from/to는 YYYY-MM-DD, to=None은 열린 구간)
 PATIENT_PDFS = {
-    "25-0000032": [
+    "25-0000032": [  # 김x애
         {"from": "2025-08-01", "to": None, "path": "uploads/김x애-간호기록지.pdf"},
     ],
-    "23-0000009": [
+    "23-0000009": [  # 장x규
         {"from": "2025-08-10", "to": None, "path": "uploads/장x규-간호기록지.pdf"},
+        # 새 버전 생기면 아래처럼 추가
+        # {"from": "2025-09-01", "to": None, "path": "uploads/장x규-간호기록지_2.pdf"},
     ],
 }
 
 def _within(d: str, start: Optional[str], end: Optional[str]) -> bool:
+    """
+    d(YYYY-MM-DD)가 [start, end]에 포함되는가? end=None이면 열린 구간
+    """
     dd = datetime.fromisoformat(d).date()
     s = datetime.fromisoformat(start).date() if start else date.min
     e = datetime.fromisoformat(end).date() if end else date.max
     return s <= dd <= e
 
 def select_pdf_for_patient(patient_id: str, target_date: Optional[str]) -> Optional[str]:
+    """
+    환자ID와 (옵션) 기준일로 적절한 PDF 경로 반환
+    - 기준일 없으면 최신(from 가장 최근) 문서를 선택
+    - 기준일 있으면 그 날짜를 포함하는 기간 문서를 선택
+    """
     entries = PATIENT_PDFS.get(patient_id, [])
     if not entries:
         return None
 
+    # 기준일 없으면 최신(from 최신) 우선으로 존재하는 파일 반환
     if not target_date:
         entries_sorted = sorted(entries, key=lambda x: x.get("from") or "", reverse=True)
         for ent in entries_sorted:
@@ -98,11 +118,13 @@ def select_pdf_for_patient(patient_id: str, target_date: Optional[str]) -> Optio
                 return ent["path"]
         return None
 
+    # 기준일 있는 경우 그 기간에 해당하는 문서를 선택
     for ent in entries:
         if _within(target_date, ent.get("from"), ent.get("to")) and os.path.exists(ent["path"]):
             return ent["path"]
     return None
 
+# ====== 응답 스키마 ======
 class NursingNoteItem(BaseModel):
     keyword: str
     detail: str
@@ -114,8 +136,20 @@ class NursingNote(BaseModel):
 @app.get("/patients/{patient_id}/nursing-notes", response_model=List[NursingNote])
 def get_nursing_notes(
     patient_id: str,
-    target_date: Optional[str] = Query(None, description="YYYY-MM-DD"),
+    target_date: Optional[str] = Query(
+        None, description="YYYY-MM-DD (이 날짜가 포함되는 문서를 우선 선택)"
+    ),
 ):
+    """
+    환자별 간호기록지(PDF)를 파싱해 날짜별 특이사항을 JSON 배열로 반환
+      - target_date 미지정 시: 최신 문서 사용
+      - target_date 지정 시: 해당 날짜가 포함되는 기간 문서 사용
+    반환 형식:
+      [
+        {"date": "2025-08-12", "items": [{"keyword":"발열","detail":"38.0도..."}, ...]},
+        ...
+      ]
+    """
     pdf_path = select_pdf_for_patient(patient_id, target_date)
     if not pdf_path:
         raise HTTPException(
@@ -127,17 +161,24 @@ def get_nursing_notes(
     return notes
 
 # =========================
-# 4) 카카오 로그인 API
+# 4) 카카오 로그인 API (첫 번째 파일의 기능 복원)
 # =========================
 
 @app.get("/auth/kakao/login")
 def kakao_login():
+    """
+    카카오 OAuth 시작 URL로 리다이렉트
+    scope 예시는 닉네임/이메일
+    """
     url = build_authorize_url(scope="profile_nickname,account_email")
     return RedirectResponse(url)
 
 
 @app.get("/auth/kakao/callback")
 def kakao_callback(code: str):
+    """
+    인가 코드를 받아 액세스 토큰 교환 → 사용자 정보 조회 → 프론트로 리다이렉트
+    """
     token_info = exchange_token(code)
     access_token = token_info.get("access_token")
     if not access_token:
@@ -146,5 +187,6 @@ def kakao_callback(code: str):
     user_info = get_user_profile(access_token)
 
     # 프론트엔드 주소로 리다이렉트 (사용자 정보는 쿼리 파라미터로 일부만 전달)
-    frontend_url = f"http://localhost:3000/login?login=success&nickname={user_info['properties']['nickname']}"
+    nickname = user_info.get("properties", {}).get("nickname", "친구")
+    frontend_url = f"http://localhost:3000/login?login=success&nickname={nickname}"
     return RedirectResponse(frontend_url)
