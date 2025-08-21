@@ -67,3 +67,12 @@ const styles = {
     marginTop: 12,
   },
 };
+
+// LoginPage.jsx or App.js (루트에서 한 번만 체크되면 OK)
+useEffect(() => {
+  const q = new URLSearchParams(window.location.search);
+  if (q.get("login") === "success") {
+    // 필요하면 닉네임도 사용 가능: q.get("nickname")
+    navigate("/home", { replace: true });
+  }
+}, [navigate]);
