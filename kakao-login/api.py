@@ -21,10 +21,10 @@ except Exception as e:
 # ---- 환경변수 ----
 CLIENT_ID = os.getenv("KAKAO_CLIENT_ID", "").strip()
 CLIENT_SECRET = os.getenv("KAKAO_CLIENT_SECRET", "").strip()
-BACKEND_BASE = os.getenv("BACKEND_BASE", "http://localhost:8001").strip()
-FRONTEND_BASE = os.getenv("FRONTEND_BASE", "http://localhost:3000").strip()
+BACKEND_BASE = os.getenv("BACKEND_BASE", "https://aichatbotproject.onrender.com").strip()
+FRONTEND_BASE = os.getenv("FRONTEND_BASE", "https://cnrkddl.github.io").strip()
+REDIRECT_URI = f"{BACKEND_BASE}/auth/kakao/callback"
 FLASK_SECRET = os.getenv("FLASK_SECRET", os.urandom(24))
-REDIRECT_URI = f"{BACKEND_BASE}/redirect"
 KAUTH_HOST = "https://kauth.kakao.com"
 KAPI_HOST = "https://kapi.kakao.com"
 
