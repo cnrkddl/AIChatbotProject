@@ -5,6 +5,7 @@ from fastapi.responses import RedirectResponse
 from pydantic import BaseModel
 from typing import List, Optional
 from datetime import datetime, date
+from urllib.parse import quote
 import os
 
 from chatbot_core import get_emotional_support_response
@@ -32,6 +33,7 @@ app.add_middleware(
     allow_origins=[
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "https://cnrkddl.github.io"
     ],
     allow_credentials=True,
     allow_methods=["*"],
@@ -173,7 +175,6 @@ def kakao_login():
     url = build_authorize_url(scope="profile_nickname,account_email")
     return RedirectResponse(url)
 
-
 @app.get("/auth/kakao/callback")
 def kakao_callback(code: str):
     """
@@ -185,8 +186,14 @@ def kakao_callback(code: str):
         raise HTTPException(status_code=400, detail="카카오 토큰 발급 실패")
 
     user_info = get_user_profile(access_token)
-
-    # 프론트엔드 주소로 리다이렉트 (사용자 정보는 쿼리 파라미터로 일부만 전달)
     nickname = user_info.get("properties", {}).get("nickname", "친구")
-    frontend_url = f"http://localhost:3000/login?login=success&nickname={nickname}"
+
+    # ▼ 배포 프론트 주소로 변경 (환경변수 우선)
+    FRONTEND_BASE = os.getenv(
+        "FRONTEND_BASE",
+        "https://cnrkddl.github.io/AIChatbotProject"
+    ).rstrip("/")
+
+    # 쿼리 안전하게 인코딩
+    frontend_url = f"{FRONTEND_BASE}/login?login=success&nickname={quote(nickname)}"
     return RedirectResponse(frontend_url)

@@ -1,78 +1,97 @@
+# backend/kakao_oauth.py
 import os
+from urllib.parse import urljoin, unquote
 import requests
-from typing import Dict, Any, Optional
-from dotenv import load_dotenv
+from fastapi import APIRouter, Request, HTTPException
+from starlette.responses import RedirectResponse, JSONResponse
 
-load_dotenv()
+router = APIRouter()
 
-KAKAO_AUTH_BASE = "https://kauth.kakao.com"
-KAKAO_API_BASE  = "https://kapi.kakao.com"
+# ---- 환경변수 ----
+CLIENT_ID = os.getenv("KAKAO_CLIENT_ID", "").strip()
+CLIENT_SECRET = os.getenv("KAKAO_CLIENT_SECRET", "").strip()   # 콘솔 '사용'일 때만 쓸 것
+BACKEND_BASE = os.getenv("BACKEND_BASE", "https://aichatbotproject.onrender.com").strip()
+FRONTEND_BASE = os.getenv("FRONTEND_BASE", "https://cnrkddl.github.io/AIChatbotProject").strip()
+REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI", f"{BACKEND_BASE}/auth/kakao/callback").strip()
 
-KAKAO_REST_KEY = os.getenv("KAKAO_REST_KEY", "").strip()
-KAKAO_REDIRECT_URI = os.getenv("KAKAO_REDIRECT_URI", "").strip()
+KAUTH_HOST = "https://kauth.kakao.com"
+KAPI_HOST = "https://kapi.kakao.com"
 
-if not KAKAO_REST_KEY:
-    raise RuntimeError("KAKAO_REST_KEY 가 .env에 설정되어 있지 않습니다.")
-if not KAKAO_REDIRECT_URI:
-    raise RuntimeError("KAKAO_REDIRECT_URI 가 .env에 설정되어 있지 않습니다.")
+def build_front_url(next_param: str | None) -> str:
+    """/login 같은 상대경로든, 인코딩된 값이든 안전하게 프론트 URL 만들어줌"""
+    if not next_param:
+        return urljoin(FRONTEND_BASE, "/login?login=success")
 
-def build_authorize_url(state: Optional[str] = None, scope: Optional[str] = None) -> str:
-    """
-    카카오 인가(로그인) URL 생성
-    """
-    from urllib.parse import urlencode
-    params = {
-        "client_id": KAKAO_REST_KEY,
-        "redirect_uri": KAKAO_REDIRECT_URI,
-        "response_type": "code",
-    }
-    if state:
-        params["state"] = state
-    if scope:
-        params["scope"] = scope  # 예: "profile_nickname,account_email"
-    return f"{KAKAO_AUTH_BASE}/oauth/authorize?{urlencode(params)}"
+    decoded = unquote(next_param)
 
-def exchange_token(code: str) -> Dict[str, Any]:
-    """
-    인가코드(code) → 액세스 토큰 교환
-    """
-    url = f"{KAKAO_AUTH_BASE}/oauth/token"
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded;charset=utf-8"
-    }
+    if decoded.startswith("http://") or decoded.startswith("https://"):
+        return decoded
+    if decoded.startswith("/"):
+        return f"{FRONTEND_BASE}{decoded}"
+    return f"{FRONTEND_BASE}/{decoded}"
+
+def exchange_code_for_token(code: str) -> dict:
+    url = f"{KAUTH_HOST}/oauth/token"
     data = {
         "grant_type": "authorization_code",
-        "client_id": KAKAO_REST_KEY,
-        "redirect_uri": KAKAO_REDIRECT_URI,
+        "client_id": CLIENT_ID,
+        "redirect_uri": REDIRECT_URI,  # authorize 때와 완전히 동일해야 함
         "code": code,
     }
-    r = requests.post(url, headers=headers, data=data, timeout=10)
-    r.raise_for_status()
-    return r.json()
+    # 콘솔에서 Client Secret 사용이 ON일 때만 포함
+    if CLIENT_SECRET:
+        data["client_secret"] = CLIENT_SECRET
 
-def refresh_token(refresh_token: str) -> Dict[str, Any]:
-    """
-    리프레시 토큰으로 액세스 토큰 재발급
-    """
-    url = f"{KAKAO_AUTH_BASE}/oauth/token"
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded;charset=utf-8"
-    }
-    data = {
-        "grant_type": "refresh_token",
-        "client_id": KAKAO_REST_KEY,
-        "refresh_token": refresh_token,
-    }
-    r = requests.post(url, headers=headers, data=data, timeout=10)
-    r.raise_for_status()
-    return r.json()
+    resp = requests.post(
+        url, data=data,
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        timeout=10,
+    )
+    # 디버깅용 로그(배포 중 문제 파악)
+    print("Kakao token status:", resp.status_code)
+    print("Kakao token body:", resp.text)
 
-def get_user_profile(access_token: str) -> Dict[str, Any]:
-    """
-    액세스 토큰으로 사용자 정보 조회
-    """
-    url = f"{KAKAO_API_BASE}/v2/user/me"
-    headers = { "Authorization": f"Bearer {access_token}" }
-    r = requests.get(url, headers=headers, timeout=10)
-    r.raise_for_status()
-    return r.json()
+    if resp.status_code != 200:
+        raise HTTPException(status_code=400, detail=f"Token error: {resp.text}")
+    return resp.json()
+
+@router.get("/auth/kakao/login")
+def kakao_login(request: Request, next: str | None = "/login?login=success"):
+    if not CLIENT_ID:
+        raise HTTPException(status_code=500, detail="KAKAO_CLIENT_ID not set")
+
+    next_url = build_front_url(next)
+    # 세션에 next 저장
+    request.session["next"] = next_url
+
+    authorize_url = (
+        f"{KAUTH_HOST}/oauth/authorize"
+        f"?response_type=code&client_id={CLIENT_ID}&redirect_uri={REDIRECT_URI}"
+    )
+    return RedirectResponse(authorize_url, status_code=302)
+
+@router.get("/auth/kakao/callback")
+def kakao_callback(request: Request, code: str | None = None, error: str | None = None):
+    if error:
+        # 카카오에서 에러가 넘어온 경우
+        return JSONResponse({"error": error}, status_code=400)
+    if not code:
+        return JSONResponse({"error": "Missing code"}, status_code=400)
+
+    token = exchange_code_for_token(code).get("access_token", "")
+
+    # (선택) 토큰으로 사용자 정보 조회 원하면 아래 사용
+    # user = requests.get(f"{KAPI_HOST}/v2/user/me",
+    #                     headers={"Authorization": f"Bearer {token}"},
+    #                     timeout=10).json()
+
+    # next URL 불러오기 (없으면 기본값)
+    next_url = request.session.pop("next", build_front_url("/login?login=success"))
+
+    # 성공 표시 없으면 추가
+    if ("login=success" not in next_url) and ("login%3Dsuccess" not in next_url):
+        sep = "&" if ("?" in next_url) else "?"
+        next_url = f"{next_url}{sep}login=success"
+
+    print("[REDIRECT -> FRONT]", next_url)
+    return RedirectResponse(next_url, status_code=302)
