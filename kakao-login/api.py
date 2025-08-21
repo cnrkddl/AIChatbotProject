@@ -64,7 +64,8 @@ def build_front_url(next_param: str) -> str:
     # 4) 상대경로라면 앞에 '/'를 붙여서 처리
     return f"{FRONTEND_BASE}/{decoded}"
 
-@app.route("/authorize")
+
+@app.route("/auth/kakao/login")      # ✅ /authorize -> /auth/kakao/login 로 변경
 def authorize():
     next_raw = request.args.get("next", "/login?login=success")
     next_url = build_front_url(next_raw)
@@ -79,7 +80,7 @@ def authorize():
         authorize_url += f"&scope={scope_param}"
     return redirect(authorize_url)
 
-@app.route("/redirect")
+@app.route("/auth/kakao/callback")   # ✅ /redirect -> /auth/kakao/callback 로 변경
 def redirect_page():
     code = request.args.get("code", "")
     if not code:
@@ -88,13 +89,20 @@ def redirect_page():
     data = {
         "grant_type": "authorization_code",
         "client_id": CLIENT_ID,
-        "redirect_uri": REDIRECT_URI,
+        "redirect_uri": REDIRECT_URI,   # ← authorize 때와 완전히 동일
         "code": code,
     }
-    if CLIENT_SECRET:
+    if CLIENT_SECRET:  # 콘솔에서 Client Secret '사용'일 때만 포함
         data["client_secret"] = CLIENT_SECRET
 
-    token_resp = requests.post(f"{KAUTH_HOST}/oauth/token", data=data)
+    # 디버깅 로그(401 원인 파악용)
+    token_resp = requests.post(f"{KAUTH_HOST}/oauth/token",
+                               data=data,
+                               headers={"Content-Type": "application/x-www-form-urlencoded"},
+                               timeout=10)
+    print("Kakao token status:", token_resp.status_code)
+    print("Kakao token body:", token_resp.text)
+
     if token_resp.status_code != 200:
         return f"Token error: {token_resp.text}", 400
 
@@ -102,13 +110,11 @@ def redirect_page():
     session["access_token"] = token_json.get("access_token", "")
 
     next_url = session.pop("next", build_front_url("/login?login=success"))
-
-    # 이미 성공표시가 있지 않다면 붙여줌 (raw/encoded 모두 커버)
     if ("login=success" not in next_url) and ("login%3Dsuccess" not in next_url):
         sep = "&" if ("?" in next_url) else "?"
         next_url = f"{next_url}{sep}login=success"
 
-    print("[REDIRECT -> FRONT]", next_url)  # 👈 최종 리다이렉트 URL 로그
+    print("[REDIRECT -> FRONT]", next_url)
     return redirect(next_url)
 
 @app.route("/profile")
