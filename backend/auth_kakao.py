@@ -7,7 +7,6 @@ import requests
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-# ✅ 절대 임포트 (점 제거)
 from kakao_oauth import (
     build_authorize_url,
     exchange_token,
@@ -88,7 +87,7 @@ async def kakao_callback(code: Optional[str] = None, state: Optional[str] = None
         resp.set_cookie(
             key="kakao_access_token",
             value=access_token,
-            max_age=60 * 60 * 6,
+            max_age=60 * 60 * 6,  # 6시간
             httponly=True,
             secure=True,
             samesite="none",
@@ -123,16 +122,26 @@ async def logout(request: Request):
             )
         except Exception:
             pass
+
     res = JSONResponse({"ok": True})
-    res.delete_cookie("kakao_access_token", path="/")
+    # ✅ 크로스사이트에서도 삭제 확실히
+    res.delete_cookie("kakao_access_token", path="/", samesite="none", secure=True)
     return res
 
 
 @router.get("/unlink")
 async def unlink(request: Request):
+    """
+    카카오 앱 연결 해제(=탈퇴). 사용자 access_token 으로 Kakao API 호출.
+    성공 시 우리 쿠키도 삭제.
+    """
     token = request.cookies.get("kakao_access_token")
     if not token:
-        return JSONResponse({"error": "not_authenticated"}, status_code=401)
+        # 이미 로그아웃 상태라면 사실상 해제할 게 없음
+        res = JSONResponse({"ok": True, "note": "no_token"})
+        res.delete_cookie("kakao_access_token", path="/", samesite="none", secure=True)
+        return res
+
     r = requests.post(
         f"{KAPI_HOST}/v1/user/unlink",
         headers={"Authorization": f"Bearer {token}"},
@@ -142,9 +151,10 @@ async def unlink(request: Request):
         body = r.json()
     except Exception:
         body = {"raw": r.text}
+
     res = JSONResponse(
         {"ok": r.status_code == 200, "kakao": body},
         status_code=(200 if r.status_code == 200 else r.status_code),
     )
-    res.delete_cookie("kakao_access_token", path="/")
+    res.delete_cookie("kakao_access_token", path="/", samesite="none", secure=True)
     return res
