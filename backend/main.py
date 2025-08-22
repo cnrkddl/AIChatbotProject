@@ -9,9 +9,10 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 
-from .auth_kakao import router as kakao_router
-from .chatbot_core import get_emotional_support_response
-from .ocr_records import (
+# ✅ 상대임포트(.) 제거하고 절대임포트로 변경
+from auth_kakao import router as kakao_router
+from chatbot_core import get_emotional_support_response
+from ocr_records import (
     extract_text_from_pdf,
     parse_by_date,
     compare_changes_with_text,
@@ -34,7 +35,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Kakao OAuth 라우터 부착 (/auth/kakao/login, /auth/kakao/callback, /logout, /unlink, /profile)
+# Kakao OAuth 라우터 부착
 app.include_router(kakao_router)
 
 
