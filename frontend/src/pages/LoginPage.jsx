@@ -2,26 +2,26 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 
-const API_BASE = process.env.REACT_APP_API_BASE || "https://aichatbotproject.onrender.com/";
+const API_BASE =
+  (process.env.REACT_APP_API_BASE || "https://aichatbotproject.onrender.com").replace(/\/+$/, "");
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // 카카오 인증 후 ?login=success(또는 login%3Dsuccess) 감지 → /home 이동
+  // 카카오 인증 후 ?login=success 감지 → /home 이동
   useEffect(() => {
     const raw = location.search || window.location.search || "";
     if (raw.includes("login=success") || raw.includes("login%3Dsuccess")) {
       navigate("/home", { replace: true });
     }
-  }, [location, navigate]);
+  }, [location.search, navigate]);
 
   const handleKakaoLogin = () => {
     setLoading(true);
-    window.location.href = `${API_BASE}/auth/kakao/login`;
+    window.location.href = `${API_BASE}/auth/kakao/login?next=/`;
   };
-
 
   return (
     <div style={styles.wrap}>
@@ -67,12 +67,3 @@ const styles = {
     marginTop: 12,
   },
 };
-
-// LoginPage.jsx or App.js (루트에서 한 번만 체크되면 OK)
-useEffect(() => {
-  const q = new URLSearchParams(window.location.search);
-  if (q.get("login") === "success") {
-    // 필요하면 닉네임도 사용 가능: q.get("nickname")
-    navigate("/home", { replace: true });
-  }
-}, [navigate]);
