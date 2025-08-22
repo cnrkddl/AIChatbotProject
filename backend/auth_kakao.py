@@ -7,18 +7,18 @@ import requests
 from fastapi import APIRouter, Request
 from fastapi.responses import JSONResponse, RedirectResponse
 
-# ── Kakao OAuth 헬퍼 (이미 프로젝트에 존재)
-from .kakao_oauth import (
-    build_authorize_url,   # 인가 URL
-    exchange_token,        # code -> token
-    get_user_profile,      # token -> profile
-    KAPI_HOST,             # https://kapi.kakao.com
+# ✅ 절대 임포트 (점 제거)
+from kakao_oauth import (
+    build_authorize_url,
+    exchange_token,
+    get_user_profile,
+    KAPI_HOST,
 )
 
 BACKEND_BASE = os.getenv("BACKEND_BASE", "https://aichatbotproject.onrender.com").strip()
 FRONTEND_BASE = os.getenv("FRONTEND_BASE", "https://cnrkddl.github.io/AIChatbotProject").strip()
 
-USE_HASH_ROUTER = True  # GitHub Pages(HashRouter)라서 /#/ 강제
+USE_HASH_ROUTER = True
 
 router = APIRouter()
 
@@ -113,10 +113,6 @@ async def profile(request: Request):
 
 @router.get("/logout")
 async def logout(request: Request):
-    """
-    카카오 로그아웃 호출 + 우리 측 쿠키 삭제.
-    프론트에서는 호출 후 로컬 상태 초기화하고 '#/'로 보내면 끝.
-    """
     token = request.cookies.get("kakao_access_token")
     if token:
         try:
@@ -134,9 +130,6 @@ async def logout(request: Request):
 
 @router.get("/unlink")
 async def unlink(request: Request):
-    """
-    카카오 앱 연결 해제(회원탈퇴 성격).
-    """
     token = request.cookies.get("kakao_access_token")
     if not token:
         return JSONResponse({"error": "not_authenticated"}, status_code=401)
@@ -149,6 +142,9 @@ async def unlink(request: Request):
         body = r.json()
     except Exception:
         body = {"raw": r.text}
-    res = JSONResponse({"ok": r.status_code == 200, "kakao": body}, status_code=(200 if r.status_code == 200 else r.status_code))
+    res = JSONResponse(
+        {"ok": r.status_code == 200, "kakao": body},
+        status_code=(200 if r.status_code == 200 else r.status_code),
+    )
     res.delete_cookie("kakao_access_token", path="/")
     return res
