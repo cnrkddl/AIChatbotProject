@@ -171,7 +171,7 @@ const HomePage = () => {
 
 const styles = {
   page: {
-    backgroundImage: `url("http://hyorim-h.com/images/greetings-img-3.png")`,
+    backgroundImage: "url('/AIChatbotProject/hyorim_image.png')",
     backgroundSize: 'cover',
     backgroundPosition: 'center',
     backgroundRepeat: 'no-repeat',

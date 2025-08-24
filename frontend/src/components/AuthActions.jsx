@@ -22,14 +22,22 @@ export default function AuthActions({ loggedIn, onLogout, onUnlink, onDone }) {
     }
   };
 
+const redirectToLogin = () => {
+  // GitHub Pages 경로 포함해서 이동
+  window.location.href = "/AIChatbotProject/#/";
+};
+
+
   const handleLogout = async () => {
     await call("/auth/kakao/logout", "POST");
     onLogout && onLogout();
+    redirectToLogin();
   };
 
   const handleUnlink = async () => {
     await call("/auth/kakao/unlink", "POST");
     onUnlink && onUnlink();
+    redirectToLogin();
   };
 
   if (!loggedIn) return null;

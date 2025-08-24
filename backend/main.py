@@ -48,11 +48,8 @@ app = FastAPI(title="AI Care Backend", version="1.0.2")
 
 # ----- CORS -----
 ALLOWED_ORIGINS = [
-    "http://localhost:3000",
-    os.getenv("FRONTEND_ORIGIN", "").strip() or "",
+    "https://cnrkddl.github.io",
 ]
-ALLOWED_ORIGINS = [o for o in ALLOWED_ORIGINS if o]
-
 app.add_middleware(
     CORSMiddleware,
     allow_origins=ALLOWED_ORIGINS or ["*"],
