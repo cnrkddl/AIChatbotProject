@@ -77,7 +77,7 @@ class DatabaseManager:
         cursor.execute('''
             INSERT OR IGNORE INTO user_patient_relations (user_email, patient_id, patient_name, relationship)
             VALUES (?, ?, ?, ?)
-        ''', ("ㅇㅇㅇ@naver.com", "25-0000032", "김x애", "딸"))
+        ''', ("sample@sample.com", "25-0000032", "김x애", "딸"))
         
         # # ===== 추가 환자 예시 (샘플 데이터) =====
         # # 환자 2: 박영희
