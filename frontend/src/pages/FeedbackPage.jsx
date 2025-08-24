@@ -5,12 +5,68 @@ const FeedbackPage = () => {
   const [selectedRating, setSelectedRating] = useState(0);
   const [hoverRating, setHoverRating] = useState(0);
   const [comment, setComment] = useState("");
-
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitStatus, setSubmitStatus] = useState(null);
+  const API_BASE = process.env.REACT_APP_API_BASE || 'https://aichatbotproject.onrender.com';
+  
   const getStarWidth = (index) => {
     const rating = hoverRating || selectedRating;
     const value = index + 1;
     if (rating >= value) return "100%";
     return "0%";
+  };
+
+  const handleSubmit = async () => {
+    if (selectedRating === 0) {
+      alert("별점을 선택해주세요!");
+      return;
+    }
+
+    if (comment.trim() === "") {
+      alert("의견을 입력해주세요!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitStatus(null);
+
+    try {
+      const response = await fetch(`${API_BASE}/feedback`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({
+          rating: selectedRating,
+          comment: comment.trim(),
+          timestamp: new Date().toISOString(),
+        }),
+      });
+
+      if (response.ok) {
+        setSubmitStatus('success');
+        // 성공 후 폼 초기화
+        setTimeout(() => {
+          setSelectedRating(0);
+          setComment("");
+          setSubmitStatus(null);
+        }, 2000);
+      } else {
+        throw new Error('피드백 저장에 실패했습니다.');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      setSubmitStatus('error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const resetForm = () => {
+    setSelectedRating(0);
+    setComment("");
+    setSubmitStatus(null);
   };
 
   return (
@@ -19,6 +75,19 @@ const FeedbackPage = () => {
       <div style={styles.container}>
         <h2 style={styles.title}>만족도 평가</h2>
         <p style={styles.subtitle}>서비스는 만족스러우셨나요?</p>
+
+        {/* 성공/실패 메시지 */}
+        {submitStatus === 'success' && (
+          <div style={styles.successMessage}>
+            ✅ 답변 감사합니다!
+          </div>
+        )}
+        
+        {submitStatus === 'error' && (
+          <div style={styles.errorMessage}>
+            ❌ 답변 저장에 실패했습니다. 다시 시도해주세요.
+          </div>
+        )}
 
         <div style={styles.stars}>
           {[0, 1, 2, 3, 4].map((i) => (
@@ -44,19 +113,35 @@ const FeedbackPage = () => {
           placeholder="서비스에 대한 의견을 자유롭게 작성해주세요."
           value={comment}
           onChange={(e) => setComment(e.target.value)}
+          maxLength={500}
         />
+        
+        <div style={styles.charCount}>
+          {comment.length}/500자
+        </div>
 
-        <button
-          style={styles.submitBtn}
-          onClick={() => alert(`평점: ${selectedRating}, 코멘트: ${comment}`)}
-        >
-          제출하기
-        </button>
+        <div style={styles.buttonContainer}>
+          <button
+            style={styles.resetBtn}
+            onClick={resetForm}
+            disabled={isSubmitting}
+          >
+            다시 작성
+          </button>
+          
+          <button
+            style={styles.submitBtn}
+            onClick={handleSubmit}
+            disabled={isSubmitting || selectedRating === 0 || comment.trim() === ""}
+          >
+            {isSubmitting ? "저장 중..." : "제출하기"}
+          </button>
+        </div>
       </div>
 
       <style>{`
-        button:hover {
-          transform: scale(1.6);
+        button:hover:not(:disabled) {
+          transform: scale(1.05);
           box-shadow: 0 4px 12px rgba(0,0,0,0.2);
           transition: transform 0.25s ease, box-shadow 0.25s ease;
         }
@@ -140,9 +225,7 @@ const styles = {
     boxSizing: "border-box",
   },
   submitBtn: {
-    width: "100%",
-    display: "block",     // ✅ 수평 가운데 정렬 가능
-    margin: "0 auto",     // ✅ 중앙 정렬
+    flex: 1,
     padding: "16px",
     background: "#3772a6ff",
     color: "#fff",
@@ -153,6 +236,42 @@ const styles = {
     cursor: "pointer",
     transition: "all 0.3s ease",
     transform: "scale(1)",
+  },
+  resetBtn: {
+    flex: 1,
+    padding: "16px",
+    background: "#f8f9fa",
+    color: "#6c757d",
+    border: "1px solid #dee2e6",
+    borderRadius: "12px",
+    fontSize: "16px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.3s ease",
+    transform: "scale(1)",
+  },
+  buttonContainer: {
+    display: "flex",
+    gap: "12px",
+  },
+  successMessage: {
+    textAlign: "center",
+    color: "#4CAF50",
+    fontSize: "16px",
+    marginBottom: "20px",
+  },
+  errorMessage: {
+    textAlign: "center",
+    color: "#F44336",
+    fontSize: "16px",
+    marginBottom: "20px",
+  },
+  charCount: {
+    textAlign: "right",
+    fontSize: "14px",
+    color: "#999",
+    marginTop: "-10px",
+    marginBottom: "20px",
   },
 };
 
