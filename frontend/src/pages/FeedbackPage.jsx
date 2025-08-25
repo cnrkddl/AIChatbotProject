@@ -43,7 +43,9 @@ const FeedbackPage = () => {
           timestamp: new Date().toISOString(),
         }),
       });
-
+      const data = await response.json();   // ✅ 응답 JSON 확인
+      console.log("✅ 서버 응답:", data);
+      
       if (response.ok) {
         setSubmitStatus('success');
         // 성공 후 폼 초기화

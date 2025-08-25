@@ -29,6 +29,10 @@ orjson==3.11.2
 PyYAML==6.0.2
 tqdm==4.67.1
 
+# --- Database ---
+psycopg2-binary==2.9.9   # ✅ PostgreSQL 드라이버
+SQLAlchemy==2.0.43       # (이미 있음)
+
 # --- Typing / low-level deps (안정용 핀) ---
 pydantic==2.11.7
 pydantic_core==2.33.2
@@ -46,6 +50,5 @@ urllib3==2.5.0
 click==8.2.1
 regex==2025.7.34
 packaging==25.0
-SQLAlchemy==2.0.43
 jiter==0.10.0
 zstandard==0.24.0
