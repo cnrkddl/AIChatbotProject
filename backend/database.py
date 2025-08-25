@@ -17,6 +17,9 @@ class DatabaseManager:
         conn = sqlite3.connect(self.db_path)
         cursor = conn.cursor()
         
+        print("✅ 현재 사용하는 DB 경로:", self.db_path)
+
+
         # 사용자-환자 연결 테이블
         cursor.execute('''
             CREATE TABLE IF NOT EXISTS user_patient_relations (
