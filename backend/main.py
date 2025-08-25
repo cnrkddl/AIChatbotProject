@@ -184,68 +184,25 @@ def get_nursing_notes(patient_id: str):
 # ==============================
 # 피드백 저장 (수정된 부분)
 # ==============================
-@app.post("/feedback")
-def save_feedback(req: FeedbackRequest, request: Request):
-    try:
-        if not (1 <= req.rating <= 5):
-            raise HTTPException(status_code=400, detail="별점은 1-5 사이여야 합니다")
-        
-        if not req.comment.strip():
-            raise HTTPException(status_code=400, detail="의견을 입력해주세요")
-        
-        # ✅ 카카오 로그인 시 쿠키에 저장된 이메일 가져오기
-        user_email = request.cookies.get("k_email")
-        if not user_email:
-            raise HTTPException(status_code=401, detail="로그인이 필요합니다")
-        
-        feedback_id = db_manager.save_feedback(
-            user_email=user_email,
-            rating=req.rating,
-            comment=req.comment.strip(),
-            timestamp=req.timestamp
-        )
-        
-        return {
-            "ok": True,
-            "message": "피드백이 성공적으로 저장되었습니다",
-            "feedback_id": feedback_id
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"피드백 저장 실패: {e}")
-
 # ==============================
-# 저장된 피드백 조회
-# ==============================
-# ==============================
-# 피드백 저장 (로그 추가)
+# 피드백 저장 (로그 추가 버전)
 # ==============================
 @app.post("/feedback")
 def save_feedback(req: FeedbackRequest, request: Request):
     try:
-        if not (1 <= req.rating <= 5):
-            raise HTTPException(status_code=400, detail="별점은 1-5 사이여야 합니다")
-        
-        if not req.comment.strip():
-            raise HTTPException(status_code=400, detail="의견을 입력해주세요")
-        
-        # ✅ 쿠키에서 이메일 가져오기
         user_email = request.cookies.get("k_email")
+        print("📌 받은 쿠키:", request.cookies)
+        
         if not user_email:
-            print("❌ 쿠키에 k_email 없음")
+            print("❌ k_email 없음")
             raise HTTPException(status_code=401, detail="로그인이 필요합니다")
 
-        # ✅ 디버깅 로그 출력
-        print("✅ 피드백 저장 시도 →",
+        print("✅ 피드백 저장 시도:",
               "user_email:", user_email,
               "rating:", req.rating,
               "comment:", req.comment.strip(),
               "timestamp:", req.timestamp)
 
-        # DB 저장
         feedback_id = db_manager.save_feedback(
             user_email=user_email,
             rating=req.rating,
@@ -253,19 +210,21 @@ def save_feedback(req: FeedbackRequest, request: Request):
             timestamp=req.timestamp
         )
 
-        print("✅ 피드백 저장 완료 → feedback_id:", feedback_id)
+        print("✅ DB 저장 성공 → feedback_id:", feedback_id)
 
         return {
             "ok": True,
             "message": "피드백이 성공적으로 저장되었습니다",
             "feedback_id": feedback_id
         }
-        
+
     except HTTPException:
         raise
     except Exception as e:
+        print("❌ 에러 발생:", e)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"피드백 저장 실패: {e}")
+
 
 # ==============================
 # 사용자별 환자 목록 조회
