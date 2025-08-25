@@ -220,14 +220,52 @@ def save_feedback(req: FeedbackRequest, request: Request):
 # ==============================
 # 저장된 피드백 조회
 # ==============================
-@app.get("/feedback")
-def get_feedback():
+# ==============================
+# 피드백 저장 (로그 추가)
+# ==============================
+@app.post("/feedback")
+def save_feedback(req: FeedbackRequest, request: Request):
     try:
-        feedback_data = db_manager.get_feedback()
-        return {"ok": True, "feedback": feedback_data}
+        if not (1 <= req.rating <= 5):
+            raise HTTPException(status_code=400, detail="별점은 1-5 사이여야 합니다")
+        
+        if not req.comment.strip():
+            raise HTTPException(status_code=400, detail="의견을 입력해주세요")
+        
+        # ✅ 쿠키에서 이메일 가져오기
+        user_email = request.cookies.get("k_email")
+        if not user_email:
+            print("❌ 쿠키에 k_email 없음")
+            raise HTTPException(status_code=401, detail="로그인이 필요합니다")
+
+        # ✅ 디버깅 로그 출력
+        print("✅ 피드백 저장 시도 →",
+              "user_email:", user_email,
+              "rating:", req.rating,
+              "comment:", req.comment.strip(),
+              "timestamp:", req.timestamp)
+
+        # DB 저장
+        feedback_id = db_manager.save_feedback(
+            user_email=user_email,
+            rating=req.rating,
+            comment=req.comment.strip(),
+            timestamp=req.timestamp
+        )
+
+        print("✅ 피드백 저장 완료 → feedback_id:", feedback_id)
+
+        return {
+            "ok": True,
+            "message": "피드백이 성공적으로 저장되었습니다",
+            "feedback_id": feedback_id
+        }
+        
+    except HTTPException:
+        raise
     except Exception as e:
         traceback.print_exc()
-        raise HTTPException(status_code=500, detail=f"피드백 조회 실패: {e}")
+        raise HTTPException(status_code=500, detail=f"피드백 저장 실패: {e}")
 
 # ==============================
 # 사용자별 환자 목록 조회
