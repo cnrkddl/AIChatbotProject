@@ -225,6 +225,26 @@ def save_feedback(req: FeedbackRequest, request: Request):
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"피드백 저장 실패: {e}")
 
+# ==============================
+# 저장된 피드백 조회 (GET)
+# ==============================
+@app.get("/feedback")
+def get_feedback():
+    try:
+        feedback_data = db_manager.get_feedback()
+
+        # ✅ 디버깅 로그
+        print("📌 get_feedback 호출됨")
+        print("📌 조회된 피드백 개수:", len(feedback_data))
+        for f in feedback_data:
+            print("   -", f)
+
+        return {"ok": True, "feedback": feedback_data}
+
+    except Exception as e:
+        traceback.print_exc()
+        print("❌ get_feedback 에러:", e)
+        raise HTTPException(status_code=500, detail=f"피드백 조회 실패: {e}")
 
 # ==============================
 # 사용자별 환자 목록 조회
