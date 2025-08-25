@@ -1,4 +1,3 @@
-# backend/main.py
 from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import RedirectResponse
@@ -100,21 +99,14 @@ def root():
 # ==============================
 @app.post("/chat")
 def chat(req: ChatRequest):
-    """
-    요청(JSON):
-      { "message": "안녕", "session_id": "demo-session" }  # session_id는 선택
-    응답(JSON):
-      { "ok": true, "reply": "..." }
-    """
     try:
         session_id = (req.session_id or "web").strip() or "web"
         reply_text = get_emotional_support_response(
-            session_id=session_id,     # ✅ 이름 맞춤
-            user_input=req.message     # ✅ 이름 맞춤
+            session_id=session_id,
+            user_input=req.message
         )
         return {"ok": True, "reply": reply_text}
     except Exception as e:
-        # 서버 콘솔에 스택트레이스 출력(디버그 도움)
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"chat failed: {e}")
 
@@ -158,12 +150,9 @@ def compare_changes_api(req: CompareChangesRequest):
 # ==============================
 PATIENT_PDFS: Dict[str, str] = {
     "25-0000032": "uploads/김x애-간호기록지.pdf",
-    # 필요 시 계속 추가
-    # "23-0000009": "uploads/장x규-간호기록지.pdf",
 }
 
 def _abs_path(rel_or_abs: str) -> str:
-    """backend 기준 절대경로로 변환"""
     base = os.path.dirname(os.path.abspath(__file__))
     return rel_or_abs if os.path.isabs(rel_or_abs) else os.path.join(base, rel_or_abs)
 
@@ -180,9 +169,7 @@ def get_nursing_notes(patient_id: str):
     if not os.path.exists(full_path):
         raise HTTPException(status_code=404, detail=f"PDF 파일이 없습니다: {full_path}")
 
-    # JSON 형태 간호기록
     notes_json = build_nursing_notes_json(full_path)
-    # 날짜별 원문 파싱(옵션: 프론트에서 날짜 드롭다운/원문 하이라이트 등에 활용)
     text = extract_text_from_pdf(full_path)
     by_date = parse_by_date(text)
 
@@ -195,36 +182,22 @@ def get_nursing_notes(patient_id: str):
     }
 
 # ==============================
-# 피드백 저장
+# 피드백 저장 (수정된 부분)
 # ==============================
 @app.post("/feedback")
-def save_feedback(req: FeedbackRequest):
-    """
-    피드백 저장 API
-    
-    요청(JSON):
-      {
-        "rating": 5,
-        "comment": "서비스가 매우 만족스럽습니다",
-        "timestamp": "2024-01-01T12:00:00.000Z"
-      }
-    
-    응답(JSON):
-      {"ok": True, "message": "피드백이 저장되었습니다"}
-    """
+def save_feedback(req: FeedbackRequest, request: Request):
     try:
-        # 피드백 데이터 검증
         if not (1 <= req.rating <= 5):
             raise HTTPException(status_code=400, detail="별점은 1-5 사이여야 합니다")
         
         if not req.comment.strip():
             raise HTTPException(status_code=400, detail="의견을 입력해주세요")
         
-        # 현재 로그인한 사용자 이메일 가져오기 (쿠키에서)
-        # 실제 구현에서는 인증된 사용자 정보를 사용해야 함
-        user_email = "sample@sample.com"  # 임시로 하드코딩, 나중에 수정 필요
+        # ✅ 카카오 로그인 시 쿠키에 저장된 이메일 가져오기
+        user_email = request.cookies.get("k_email")
+        if not user_email:
+            raise HTTPException(status_code=401, detail="로그인이 필요합니다")
         
-        # 데이터베이스에 피드백 저장
         feedback_id = db_manager.save_feedback(
             user_email=user_email,
             rating=req.rating,
@@ -233,7 +206,7 @@ def save_feedback(req: FeedbackRequest):
         )
         
         return {
-            "ok": True, 
+            "ok": True,
             "message": "피드백이 성공적으로 저장되었습니다",
             "feedback_id": feedback_id
         }
@@ -249,28 +222,9 @@ def save_feedback(req: FeedbackRequest):
 # ==============================
 @app.get("/feedback")
 def get_feedback():
-    """
-    저장된 모든 피드백 조회
-    
-    응답(JSON):
-      {
-        "ok": True,
-        "feedback": [
-          {
-            "id": 1,
-            "user_email": "sample@sample.com",
-            "rating": 5,
-            "comment": "서비스가 매우 만족스럽습니다",
-            "timestamp": "2024-01-01T12:00:00.000Z",
-            "created_at": "2024-01-01T12:00:00.000Z"
-          }
-        ]
-      }
-    """
     try:
         feedback_data = db_manager.get_feedback()
         return {"ok": True, "feedback": feedback_data}
-        
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"피드백 조회 실패: {e}")
@@ -280,32 +234,10 @@ def get_feedback():
 # ==============================
 @app.get("/my-patients")
 def get_my_patients(request: Request):
-    """
-    로그인한 사용자의 환자 목록 조회
-    
-    응답(JSON):
-      {
-        "ok": True,
-        "patients": [
-          {
-            "patient_id": "25-0000032",
-            "patient_name": "김x애",
-            "relationship": "딸",
-            "birth_date": "1935-03-15",
-            "room_number": "301",
-            "admission_date": "2024-01-15"
-          }
-        ]
-      }
-    """
     try:
-        # 현재 로그인한 사용자 이메일 가져오기 (쿠키에서)
-        # 실제 구현에서는 인증된 사용자 정보를 사용해야 함
-        user_email = "sample@sample.com"  # 임시로 하드코딩, 나중에 수정 필요
-        
+        user_email = "sample@sample.com"  # 아직 하드코딩 (나중에 수정 가능)
         patients = db_manager.get_user_patients(user_email)
         return {"ok": True, "patients": patients}
-        
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=500, detail=f"환자 목록 조회 실패: {e}")
@@ -315,21 +247,8 @@ def get_my_patients(request: Request):
 # ==============================
 @app.post("/add-patient")
 async def add_patient(request: Request):
-    """
-    사용자-환자 연결 추가
-    
-    요청(JSON):
-      {
-        "patient_id": "25-0000032",
-        "patient_name": "김x애",
-        "relationship": "딸"
-      }
-    """
     try:
-        # 현재 로그인한 사용자 이메일 가져오기
-        user_email = "sample@sample.com"  # 임시로 하드코딩
-        
-        # 요청 본문 파싱
+        user_email = "sample@sample.com"  # 아직 하드코딩 (나중에 수정 가능)
         body = await request.json()
         patient_id = body.get("patient_id")
         patient_name = body.get("patient_name")
@@ -338,7 +257,6 @@ async def add_patient(request: Request):
         if not patient_id or not patient_name:
             raise HTTPException(status_code=400, detail="환자 ID와 이름은 필수입니다")
         
-        # 데이터베이스에 연결 추가
         success = db_manager.add_user_patient(
             user_email=user_email,
             patient_id=patient_id,
